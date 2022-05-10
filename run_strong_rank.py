@@ -122,7 +122,7 @@ def main():
     else:
         cmd = sys.argv[1]
         print ("Application to run is: " + cmd )
-        if cmd == "All":
+        if cmd.upper() == "ALL":
             for key, value in applications.items():
                 run(key)
                 os.chdir(rootdir)
