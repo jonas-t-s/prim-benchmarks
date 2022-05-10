@@ -29,7 +29,7 @@ __dirs := $(shell mkdir -p ${BUILDDIR})
 COMMON_FLAGS := -Wall -Wextra -g -I${COMMON_INCLUDES}
 HOST_FLAGS := ${COMMON_FLAGS} -std=c11 -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} 
 DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS} 
-CPU_BASE_FLAGS := -O3 -fopenmp
+CPU_BASE_FLAGS := -O3 -fopenmp -I/usr/lib/gcc/x86_64-linux-gnu/9/include/
 GPU_BASE_FLAGS := -O3
 
 all: ${HOST_TARGET} ${DPU_TARGET} ${CPU_BASE_TARGET}
