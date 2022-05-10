@@ -2,7 +2,7 @@ import os
 import sys
 import getpass
 
-rootdir = "/" # Include path to repo
+rootdir = os.getcwd() # Include path to repo
 
 applications = {"VA"       : ["NR_DPUS=X NR_TASKLETS=Y BL=Z make all", "./bin/host_code -w 0 -e 1 -i 167772160 -x 1"], 
                 "GEMV"     : ["NR_DPUS=X NR_TASKLETS=Y BL=Z make all", "./bin/gemv_host -m 163840 -n 4096"],
