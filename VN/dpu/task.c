@@ -19,6 +19,15 @@
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 BARRIER_INIT(my_barrier, NR_TASKLETS);
 
+void vector_norm_host(double *v[], unsigned int norm, unsigned int numbers, double *result){
+    *result = 0;
+    for(int i= 0; i < numbers; i++){
+        *result += x_to_the_power_of_n(v[i], norm);
+    }
+    *result = x_to_the_power_of_z(result, 1/((double )norm));
+}
+
+
 int main(){
 
 }
@@ -43,8 +52,8 @@ int main_kernel1(){
     uint32_t mram_base_addr_B = (uint32_t)(DPU_MRAM_HEAP_POINTER + input_size_dpu_bytes_transfer);
 
     // Initialize a local cache to store the MRAM block
-    T *cache_A = (T *) mem_alloc(BLOCK_SIZE);
-    T *cache_B = (T *) mem_alloc(BLOCK_SIZE);
+    double *cache_A = (double *) mem_alloc(BLOCK_SIZE);
+    double *result = (double *) mem_alloc(BLOCK_SIZE);
 
     for(unsigned int byte_index = base_tasklet; byte_index < input_size_dpu_bytes; byte_index += BLOCK_SIZE * NR_TASKLETS){
 
@@ -56,7 +65,7 @@ int main_kernel1(){
         mram_read((__mram_ptr void const*)(mram_base_addr_B + byte_index), cache_B, l_size_bytes);
 
         // Computer vector addition
-        vector_addition(cache_B, cache_A, l_size_bytes >> DIV);
+        vector_norm_host(cache_A, result, 2, input_size_dpu_bytes/sizeof(double)
 
         // Write cache to current MRAM block
         mram_write(cache_B, (__mram_ptr void*)(mram_base_addr_B + byte_index), l_size_bytes);
