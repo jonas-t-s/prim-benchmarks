@@ -36,19 +36,16 @@
 #include <dpu_probe.h>
 #endif
 
-
-void vector_norm_host(double *v[], unsigned int norm, unsigned int numbers, double *result){
-    *result = 0;
-    for(int i= 0; i < numbers; i++){
-        *result += x_to_the_power_of_n(v[i], norm);
-    }
-    *result = x_to_the_power_of_z(result, 1/((double )norm));
-}
+static double *v;
+static double *output_host;
+static double *output_dpu;
 
 
-void fill_up_vector(double *v[], unsigned int length){
+
+void fill_up_vector(double* v[], unsigned int length){
     for(int i= 0;i<length; i++){
-        *v[i] = rand();
+        //v[i] = malloc(sizeof(double ));
+        v[i] = rand();
     }
 }
 int main(int argc, char **argv) {
@@ -71,7 +68,7 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
     printf("Allocated %d DPU(s)\n", nr_of_dpus);
     unsigned int i = 0;
-    const unsigned int vector_length = 1000;
+    const unsigned int vector_length = 5;
     const unsigned int input_size =
             p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size; // Total input size (weak or strong scaling)
     const unsigned int input_size_bytes =
@@ -79,9 +76,11 @@ int main(int argc, char **argv) {
     const unsigned int input_size_dpu = divceil(input_size, nr_of_dpus);
     const unsigned int input_size_dpu_8bytes =
         ((input_size_dpu * sizeof(double)*vector_length) % 8) != 0 ? roundup(input_size_dpu, 8) : input_size_dpu; // Input size per DPU (max.), 8-byte aligned
-    double *v[vector_length];
-    double *output_host;
-    double *output_dpu;
+
+    v = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(double ));
+
+    output_host = malloc(input_size_dpu_8bytes* nr_of_dpus * sizeof(double ));
+    output_dpu = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(double ) );
 
 
     //Alocate the vector
@@ -91,10 +90,14 @@ int main(int argc, char **argv) {
     // Loop over main kernel
 
     for(int rep = 0; rep <p.n_warmup +p.n_reps; rep++){
-        fill_up_vector(v,vector_length);
+        fill_up_vector(&v,vector_length);
+        for(i = 0; i< vector_length; i++){
+            printf("%d" , i);
+            printf(": %lf\n", v[i]);
+        }
         if(rep >= p.n_warmup)
             start(&timer, 0, rep - p.n_warmup);
-        vector_norm_host(v, 2,vector_length,output_host );
+        vector_norm_host(&v, 2,vector_length,output_host );
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
@@ -112,18 +115,19 @@ int main(int argc, char **argv) {
         DPU_FOREACH(dpu_set, dpu, i) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, &input_arguments[i]));
         }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments[0]), DPU_XFER_DEFAULT));
+        //DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments[0]), DPU_XFER_DEFAULT));
 
         DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, bufferA + input_size_dpu_8bytes * i));
+            DPU_ASSERT(dpu_prepare_xfer(dpu, &v + input_size_dpu_8bytes * i));
         }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, input_size_dpu_8bytes * sizeof(double) , DPU_XFER_DEFAULT));
         /* We do only have one input
         DPU_FOREACH(dpu_set, dpu, i) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, bufferB + input_size_dpu_8bytes * i));
-        }*/
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T), input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
-        if(rep >= p.n_warmup)
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(double ) * vector_length, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
+        */
+         if(rep >= p.n_warmup)
             stop(&timer, 1);
 
                 printf("Run program on DPU(s) \n");
@@ -158,13 +162,17 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             start(&timer, 3, rep - p.n_warmup);
         i = 0;
+
         // PARALLEL RETRIEVE TRANSFER
         DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, bufferC + input_size_dpu_8bytes * i));
+            DPU_ASSERT(dpu_prepare_xfer(dpu, output_dpu + input_size_dpu_8bytes * i));
         }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T), input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(double), input_size_dpu_8bytes * sizeof(double), DPU_XFER_DEFAULT));
         if(rep >= p.n_warmup)
             stop(&timer, 3);
+        printf("CPU: %d \n", *output_host);
+        printf("DPU: %d \n", *output_dpu);
     }
+
 
 }
