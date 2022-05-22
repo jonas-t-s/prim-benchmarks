@@ -97,7 +97,8 @@ int main(int argc, char **argv) {
         }
         if(rep >= p.n_warmup)
             start(&timer, 0, rep - p.n_warmup);
-        vector_norm_host(&v, 2,vector_length,output_host );
+        vector_norm_host(v, 2,vector_length,output_host );
+        // printf("test %lf \n", *output_host);
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
@@ -118,7 +119,7 @@ int main(int argc, char **argv) {
         //DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments[0]), DPU_XFER_DEFAULT));
 
         DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, &v + input_size_dpu_8bytes * i));
+            DPU_ASSERT(dpu_prepare_xfer(dpu, v + input_size_dpu_8bytes * i));
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, input_size_dpu_8bytes * sizeof(double) , DPU_XFER_DEFAULT));
         /* We do only have one input
@@ -170,8 +171,8 @@ int main(int argc, char **argv) {
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(double), input_size_dpu_8bytes * sizeof(double), DPU_XFER_DEFAULT));
         if(rep >= p.n_warmup)
             stop(&timer, 3);
-        printf("CPU: %d \n", *output_host);
-        printf("DPU: %d \n", *output_dpu);
+        printf("CPU: %lf \n", *output_host);
+        printf("DPU: %lf \n", *output_dpu);
     }
 
 
