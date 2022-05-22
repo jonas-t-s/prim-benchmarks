@@ -36,19 +36,20 @@
 #include <dpu_probe.h>
 #endif
 
-static double *v;
-static double *output_host;
-static double *output_dpu;
 
 
 
-void fill_up_vector(double* v[], unsigned int length){
+void fill_up_vector(double* v, unsigned int length){
     for(int i= 0;i<length; i++){
         //v[i] = malloc(sizeof(double ));
-        v[i] = rand();
+        v[i] = i;
     }
 }
 int main(int argc, char **argv) {
+    static double* v;
+    static double* output_host;
+    static double* output_dpu;
+
     printf("hi");
     double t = 2;
     double n = 0.5;
@@ -77,11 +78,14 @@ int main(int argc, char **argv) {
     const unsigned int input_size_dpu_8bytes =
         ((input_size_dpu * sizeof(double)*vector_length) % 8) != 0 ? roundup(input_size_dpu, 8) : input_size_dpu; // Input size per DPU (max.), 8-byte aligned
 
-    v = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(double ));
+    v = (double*)malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(double ));
 
-    output_host = malloc(input_size_dpu_8bytes* nr_of_dpus * sizeof(double ));
-    output_dpu = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(double ) );
-
+    output_host = (double*) malloc(input_size_dpu_8bytes* nr_of_dpus * sizeof(double ));
+    output_dpu = (double*) malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(double ) );
+    if(v== NULL || output_host == 0 || output_dpu == NULL){
+        printf("MEMOR not allocated. \n");
+        exit(1);
+    }
 
     //Alocate the vector
     srand(time(NULL));
@@ -90,7 +94,7 @@ int main(int argc, char **argv) {
     // Loop over main kernel
 
     for(int rep = 0; rep <p.n_warmup +p.n_reps; rep++){
-        fill_up_vector(&v,vector_length);
+        fill_up_vector(v,vector_length);
         for(i = 0; i< vector_length; i++){
             printf("%d" , i);
             printf(": %lf\n", v[i]);
@@ -116,18 +120,18 @@ int main(int argc, char **argv) {
         DPU_FOREACH(dpu_set, dpu, i) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, &input_arguments[i]));
         }
-        //DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments[0]), DPU_XFER_DEFAULT));
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments[0]), DPU_XFER_DEFAULT));
 
         DPU_FOREACH(dpu_set, dpu, i) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, v + input_size_dpu_8bytes * i));
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, input_size_dpu_8bytes * sizeof(double) , DPU_XFER_DEFAULT));
-        /* We do only have one input
+        /*// We do only have one input --> But another output!
         DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, bufferB + input_size_dpu_8bytes * i));
+            DPU_ASSERT(dpu_prepare_xfer(dpu, output_dpu + input_size_dpu_8bytes * i));
         }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(double ) * vector_length, input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
-        */
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(double ) * vector_length, input_size_dpu_8bytes * sizeof(double), DPU_XFER_DEFAULT));
+*/
          if(rep >= p.n_warmup)
             stop(&timer, 1);
 

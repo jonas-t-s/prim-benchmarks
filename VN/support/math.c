@@ -30,8 +30,8 @@ double x_to_the_power_of_z(double *pDouble, double n) {
 }
 
 
-void vector_norm_host(double *v[], unsigned int norm, unsigned int numbers, double *result){
-    result = malloc(sizeof(double));
+void vector_norm_host(double* v, unsigned int norm, unsigned int numbers, double* result){
+    // result = malloc(sizeof(double));
     *result = 0;
     for(int i= 0; i < numbers; i++){
         *result += x_to_the_power_of_n(&v[i], norm);

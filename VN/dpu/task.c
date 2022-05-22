@@ -13,10 +13,11 @@
 #include <perfcounter.h>
 #include <barrier.h>
 
-
+#include <inttypes.h>
 #include "../../VN/support/common.h"
 
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
+
 BARRIER_INIT(my_barrier, NR_TASKLETS);
 /*
 void vector_norm_host(double *v[], unsigned int norm, unsigned int numbers, double *result){
@@ -38,14 +39,13 @@ int main(void){
 int main_kernel1(){
     unsigned int tasklet_id = me();
 #if PRINT
-    printf("tasklet_id = %u\n", tasklet_id);
+    //printf("tasklet_id = %u\n", tasklet_id);
 #endif
     if (tasklet_id == 0){ // Initialize once the cycle counter
         mem_reset(); // Reset the heap
     }
     // Barrier
     barrier_wait(&my_barrier);
-
     uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size; // Input size per DPU in bytes
     uint32_t input_size_dpu_bytes_transfer = DPU_INPUT_ARGUMENTS.transfer_size; // Transfer input size per DPU in bytes
 
@@ -55,9 +55,14 @@ int main_kernel1(){
     uint32_t mram_base_addr_B = (uint32_t)(DPU_MRAM_HEAP_POINTER + input_size_dpu_bytes_transfer);
 
     // Initialize a local cache to store the MRAM block
-    double *cache_A = (double *) mem_alloc(BLOCK_SIZE);
-    double *result = (double *) mem_alloc(BLOCK_SIZE);
+    double* cache_A = (double *) mem_alloc(BLOCK_SIZE);
+    double* result = (double *) mem_alloc(BLOCK_SIZE);
+    printf("SIZE: %p",  &input_size_dpu_bytes);
 
+    mram_read((__mram_ptr void const*)(mram_base_addr_A), cache_A, 2048);
+    vector_norm_host(cache_A, 2, 5 ,result);
+    printf("RESULT: %lf \n", *result);
+    mram_write(result,(__mram_ptr void*)(mram_base_addr_B), 2048) ;
     for(unsigned int byte_index = base_tasklet; byte_index < input_size_dpu_bytes; byte_index += BLOCK_SIZE * NR_TASKLETS){
 
         // Bound checking
@@ -67,9 +72,11 @@ int main_kernel1(){
         mram_read((__mram_ptr void const*)(mram_base_addr_A + byte_index), cache_A, l_size_bytes);
         //mram_read((__mram_ptr void const*)(mram_base_addr_B + byte_index), cache_B, l_size_bytes);
 
+        printf("A: %lf \n", cache_A[1]);
+        printf("RESULT: %lf \n", *result);
+
         // Computer vector addition
         vector_norm_host(cache_A, 2, 2, result);
-
         // Write cache to current MRAM block
         mram_write(result, (__mram_ptr void*)(mram_base_addr_B + byte_index), l_size_bytes);
 
