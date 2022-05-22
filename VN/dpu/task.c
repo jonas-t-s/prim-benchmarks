@@ -18,17 +18,20 @@
 
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 BARRIER_INIT(my_barrier, NR_TASKLETS);
-
+/*
 void vector_norm_host(double *v[], unsigned int norm, unsigned int numbers, double *result){
     *result = 0;
     for(int i= 0; i < numbers; i++){
         *result += x_to_the_power_of_n(v[i], norm);
     }
     *result = x_to_the_power_of_z(result, 1/((double )norm));
-}
+}*/
+extern int main_kernel1();
 
+int (*kernels[nr_kernels])(void) = {main_kernel1};
 
-int main(){
+int main(void){
+    return kernels[DPU_INPUT_ARGUMENTS.kernel]();
 
 }
 //TODO: Adjust the copied code
@@ -62,13 +65,13 @@ int main_kernel1(){
 
         // Load cache with current MRAM block
         mram_read((__mram_ptr void const*)(mram_base_addr_A + byte_index), cache_A, l_size_bytes);
-        mram_read((__mram_ptr void const*)(mram_base_addr_B + byte_index), cache_B, l_size_bytes);
+        //mram_read((__mram_ptr void const*)(mram_base_addr_B + byte_index), cache_B, l_size_bytes);
 
         // Computer vector addition
-        vector_norm_host(cache_A, result, 2, input_size_dpu_bytes/sizeof(double)
+        vector_norm_host(cache_A, 2, 2, result);
 
         // Write cache to current MRAM block
-        mram_write(cache_B, (__mram_ptr void*)(mram_base_addr_B + byte_index), l_size_bytes);
+        mram_write(result, (__mram_ptr void*)(mram_base_addr_B + byte_index), l_size_bytes);
 
     }
     return 0;
