@@ -2,6 +2,7 @@
 // Created by jonas on 13.05.22.
 //
 
+
 #include "math.h"
 double x_to_the_power_of_n(double *pDouble, unsigned int n) {
     double result = 1;
@@ -28,3 +29,12 @@ double x_to_the_power_of_z(double *pDouble, double n) {
     return xn1;
 }
 
+
+void vector_norm_host(double *v[], unsigned int norm, unsigned int numbers, double *result){
+    result = malloc(sizeof(double));
+    *result = 0;
+    for(int i= 0; i < numbers; i++){
+        *result += x_to_the_power_of_n(&v[i], norm);
+    }
+    *result = x_to_the_power_of_z(result, 1/((double )norm));
+}
